@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Bomberos Pedraza - Sistema de Control</title>
+    
+    <!-- ====== META TAGS PWA ====== -->
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Bomberos Pedraza" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icons/icon-180.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png" />
+    
+    <!-- ====== CDNs ====== -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #ef4444;
+            --bg-dark: #0a0f1a;
+            --bg-card: #111827;
+            --text-light: #f1f5f9;
+            --border-color: #1e293b;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.2); }
+            50% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.5); }
+        }
+        .glow-pulse { animation: pulse-glow 2s ease-in-out infinite; }
+        
+        .btn-accion {
+            display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+            padding: 4px 12px; border-radius: 8px; font-size: 10px; font-weight: 700;
+            transition: all 0.2s; border: 1px solid transparent; cursor: pointer;
+            min-height: 28px; text-transform: uppercase; letter-spacing: 0.3px;
+        }
+        .btn-accion:hover { transform: translateY(-1px) scale(1.04); }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3); }
+        .btn-primary:hover { background: #dc2626; }
+        .btn-secondary { background: var(--bg-card); color: var(--text-light); border-color: var(--border-color); }
+        
+        .card {
+            background: linear-gradient(145deg, var(--bg-card), #0f1729);
+            border: 1px solid var(--border-color); border-radius: 16px; padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); transition: all 0.3s ease;
+        }
+        
+        .input-field {
+            width: 100%; background: var(--bg-dark); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 10px 14px; font-size: 13px; color: var(--text-light);
+            transition: all 0.3s ease; outline: none;
+        }
+        .input-field:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15); }
+        
+        .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 20px; font-size: 9px; font-weight: 700; text-transform: uppercase; }
+        .badge-info { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.2); }
+        .badge-success { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .badge-warning { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); }
+        .badge-danger { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+        
+        @media (max-width: 640px) {
+            .card { padding: 14px; border-radius: 12px; }
+            .input-field { font-size: 16px; padding: 12px 14px; }
+        }
+        
+        .install-banner {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 1px solid #334155; border-radius: 14px; padding: 14px 20px;
+            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+        }
+        
+        .logo-container { position: relative; display: inline-block; }
+        .logo-container::after {
+            content: ''; position: absolute; inset: -4px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(239, 68, 68, 0.2), transparent 70%);
+            z-index: -1; animation: pulse-glow 3s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="bg-[#0a0f1a] text-slate-100 min-h-screen font-sans antialiased">
+    <div id="root"></div>
+
+    <div id="install-banner" class="install-banner fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:max-w-sm z-[9998]" style="display:none;">
+        <div class="flex items-center gap-3">
+            <span class="text-2xl">📱</span>
+            <div>
+                <p class="text-xs font-bold text-white">Instalar App</p>
+                <p class="text-[10px] text-slate-400">Instala Bomberos Pedraza en tu dispositivo</p>
+            </div>
+        </div>
+        <button onclick="window.__instalarPWA()" class="btn-accion btn-primary text-xs px-4 py-2 rounded-xl">Instalar</button>
+    </div>
+
+    <div id="emergency-recovery" style="display:none;" class="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center p-4 z-[9999]">
+        <div class="bg-slate-900 border-2 border-red-500 rounded-3xl p-8 max-w-md w-full text-center">
+            <div class="text-6xl mb-4">🚨</div>
+            <h2 class="text-2xl font-bold text-red-500 mb-2">MODO DE EMERGENCIA</h2>
+            <p class="text-slate-400 mb-6 text-sm">La aplicación ha detectado un problema crítico. Tus datos están seguros.</p>
+            <div class="space-y-3">
+                <button onclick="window.__recuperarApp()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition-all">🔄 RECUPERAR AHORA</button>
+                <button onclick="window.__cargarBackup()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 px-6 rounded-xl transition-all text-sm">📂 CARGAR DESDE BACKUP</button>
+                <button onclick="window.__resetApp()" class="w-full bg-slate-950 hover:bg-red-900/30 text-slate-500 font-bold py-3 px-6 rounded-xl transition-all text-xs">⚠️ REINICIO COMPLETO</button>
+            </div>
+            <p class="text-xs text-slate-600 mt-4">Error: <span id="error-detalle" class="text-red-400"></span></p>
+        </div>
+    </div>
+
+    <script type="text/babel">
+        const LOGGER = {
+            registrar: function(nivel, mensaje, datos = {}) {
+                const log = { timestamp: new Date().toISOString(), nivel, mensaje, datos };
+                try {
+                    const logs = JSON.parse(localStorage.getItem('LOGS_BOMBEROS') || '[]');
+                    logs.push(log);
+                    if (logs.length > 500) logs.shift();
+                    localStorage.setItem('LOGS_BOMBEROS', JSON.stringify(logs));
+                } catch (e) {}
+                const emoji = { INFO: 'ℹ️', WARN: '⚠️', ERROR: '❌' };
+                console.log(`${emoji[nivel] || '📝'} ${mensaje}`, datos);
+            },
+            info: (m, d) => LOGGER.registrar('INFO', m, d),
+            warn: (m, d) => LOGGER.registrar('WARN', m, d),
+            error: (m, d) => LOGGER.registrar('ERROR', m, d)
+        };
+
+        window.__recuperarApp = function() { document.getElementById('emergency-recovery').style.display = 'none'; setTimeout(() => window.location.reload(), 500); };
+        window.__cargarBackup = function() {
+            const backup = localStorage.getItem('BACKUP_EMERGENCIA_BOMBEROS');
+            if (backup) { const datos = JSON.parse(backup); localStorage.setItem('MINUTAS_LOCALES_PEDRAZA', JSON.stringify(datos.minutas || [])); alert('✅ Backup restaurado correctamente.'); window.location.reload(); }
+            else alert('❌ No hay backup disponible');
+        };
+        window.__resetApp = function() {
+            if (confirm('⚠️ ¿Estás seguro? Esto borrará TODOS los datos locales.')) {
+                if (confirm('🔴 ¿REALMENTE seguro?')) { localStorage.clear(); alert('✅ Aplicación reiniciada.'); window.location.reload(); }
+            }
+        };
+        window.__instalarPWA = function() {
+            if (window.deferredPrompt) {
+                window.deferredPrompt.prompt();
+                window.deferredPrompt.userChoice.then(() => { window.deferredPrompt = null; });
+            }
+        };
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => LOGGER.info('Service Worker registrado', { scope: reg.scope }))
+                    .catch(err => LOGGER.warn('Service Worker falló', { error: err }));
+            });
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            window.deferredPrompt = e;
+            document.getElementById('install-banner').style.display = 'flex';
+        });
+
+        window.addEventListener('error', function(e) {
+            LOGGER.error('Error global capturado', { message: e.message });
+            try { localStorage.setItem('BACKUP_EMERGENCIA_BOMBEROS', JSON.stringify({ minutas: JSON.parse(localStorage.getItem('MINUTAS_LOCALES_PEDRAZA') || '[]'), timestamp: Date.now() })); } catch (err) {}
+            return true;
+        }, true);
+
+        window.addEventListener('online', () => mostrarNotificacionGlobal('🌐 Conexión restaurada', 'success'));
+        window.addEventListener('offline', () => mostrarNotificacionGlobal('📡 Sin conexión', 'warning'));
+
+        let notificacionGlobalTimeout = null;
+        function mostrarNotificacionGlobal(mensaje, tipo = 'info') {
+            const notif = document.getElementById('notificacion-global') || crearNotificacionGlobal();
+            notif.textContent = mensaje;
+            notif.className = `fixed top-4 right-4 z-[9999] px-6 py-3 rounded-xl shadow-2xl font-bold text-sm transition-all duration-500 ${tipo === 'success' ? 'bg-emerald-600 text-white' : tipo === 'error' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'}`;
+            notif.style.transform = 'translateX(0)'; notif.style.opacity = '1';
+            if (notificacionGlobalTimeout) clearTimeout(notificacionGlobalTimeout);
+            notificacionGlobalTimeout = setTimeout(() => { notif.style.transform = 'translateX(400px)'; notif.style.opacity = '0'; }, 4000);
+        }
+
+        function crearNotificacionGlobal() {
+            const div = document.createElement('div');
+            div.id = 'notificacion-global';
+            div.style.cssText = `position:fixed;top:20px;right:20px;z-index:99999;padding:16px 24px;border-radius:12px;font-weight:bold;font-size:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);transform:translateX(400px);opacity:0;transition:all 0.5s;max-width:400px;`;
+            document.body.appendChild(div);
+            return div;
+        }
+
+        const CONFIG_POR_DEFECTO = {
+            apiKey: "AIzaSyB8H_zzIWZ0TAoYJM1FbJ_a-uv7Kzzb4E8",
+            authDomain: "reportesbomberospedraza.firebaseapp.com",
+            projectId: "reportesbomberospedraza",
+            storageBucket: "reportesbomberospedraza.firebasestorage.app",
+            messagingSenderId: "872707089111",
+            appId: "1:872707089111:web:67b1dd2f39c14be6130692",
+        };
+
+        let app = null, auth = null, db = null, firebaseEnabled = false;
+        try {
+            app = firebase.initializeApp(CONFIG_POR_DEFECTO);
+            auth = firebase.auth();
+            db = firebase.firestore();
+            db.enablePersistence({ synchronizeTabs: true }).catch(err => LOGGER.warn('Persistence falló', { error: err }));
+            firebaseEnabled = true;
+        } catch (error) {
+            firebaseEnabled = false;
+            LOGGER.error('Firebase no disponible', { error });
+        }
+
+        const AUTH = {
+            iniciarSesion: async function(email, password) {
+                if (!firebaseEnabled) return { success: false, error: 'Firebase no disponible' };
+                try {
+                    const credencial = await auth.signInWithEmailAndPassword(email, password);
+                    localStorage.setItem('SESION_BOMBEROS', JSON.stringify({ uid: credencial.user.uid, email: credencial.user.email, timestamp: Date.now() }));
+                    return { success: true, user: credencial.user };
+                } catch (error) {
+                    let mensaje = 'Error de autenticación';
+                    if (error.code === 'auth/invalid-email') mensaje = 'Email inválido';
+                    if (error.code === 'auth/user-not-found') mensaje = 'Usuario no registrado';
+                    if (error.code === 'auth/wrong-password') mensaje = 'Contraseña incorrecta';
+                    if (error.code === 'auth/network-request-failed') mensaje = 'Error de conexión a internet';
+                    return { success: false, error: mensaje };
+                }
+            },
+            cerrarSesion: function() { if (auth) auth.signOut(); localStorage.removeItem('SESION_BOMBEROS'); },
+            verificarSesion: function() {
+                const sesion = localStorage.getItem('SESION_BOMBEROS');
+                if (sesion) {
+                    try {
+                        const data = JSON.parse(sesion);
+                        if (Date.now() - data.timestamp < 86400000) return data;
+                    } catch (e) { return null; }
+                }
+                return null;
+            }
+        };
+
+        const LISTA_SERVICIOS = ["Traslados", "Toma de Tensión Arterial", "Suministro de Medicamentos", "Nebulización", "Abastecimiento de Agua", "Guardia de Seguridad y Prevención", "Frente Preventivo", "Preparación Ciudadana", "Apoyo Institucional", "Colisión entre Vehículos", "Colisión Vehículo-Moto", "Colisión entre Motos", "Derrape de Moto", "Volcamiento", "Atropello", "Lesionado en Accidente de Tránsito", "Fallecido en Accidente de Tránsito", "Inspección de Avispas", "Inspección de Abejas", "Reubicación de Avispas", "Reubicación de Abejas", "Incendio Estructural", "Incendio Forestal", "Incendio de Vehículo", "Incendio de Basura", "Mordedura de Serpiente", "Otro Servicio no Señalado"];
+        const ORGANISMOS = ["Policía Nacional Bolivariana", "Policía Estado Barinas", "Guardia Nacional Bolivariana", "CICPC - Socopó", "Protección Civil", "Alcaldía Municipio Pedraza", "Bomberos Barinas", "Bomberos Socopo"];
+        const UNIDADES = ["Unidad 03 VIR", "Unidad 05 Ambulancia", "Unidad 05 Moto", "Unidad 06 Táctica y Apoyo", "Unidad 07 Cisterna", "Unidad 04 Moto", "Vehículo Particular"];
+        const PARROQUIAS = ["PARROQUIA CIUDAD BOLIVIA", "PARROQUIA JOSÉ FÉLIX RIBAS", "PARROQUIA IGNACIO BRICEÑO", "PARROQUIA JOSÉ ANTONIO PÁEZ"];
+
+        const USUARIOS_SECCION = { 'bomberospedraza@gmail.com': 'Admin', 'jsmolthz13@gmail.com': 'Bomberos' };
+        const ADMIN_EMAILS = ['bomberospedraza@gmail.com'];
+
+        function obtenerNombreSeccion(email) { return USUARIOS_SECCION[email] || email.split('@')[0] || 'Usuario'; }
+        function esAdmin(email) { return ADMIN_EMAILS.includes(email); }
+
+        function PantallaLogin({ onLogin, errorInicial }) {
+            const [email, setEmail] = React.useState('');
+            const [password, setPassword] = React.useState('');
+            const [error, setError] = React.useState(errorInicial || '');
+            const [cargando, setCargando] = React.useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setError(''); setCargando(true);
+                const result = await AUTH.iniciarSesion(email, password);
+                if (result.success) onLogin(result.user);
+                else setError(result.error || 'Error al iniciar sesión');
+                setCargando(false);
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-[#0a0f1a] p-4">
+                    <div className="card max-w-md w-full p-8 fade-in">
+                        <div className="text-center mb-8">
+                            <div className="flex items-center justify-center gap-3 mb-4">
+                                <img src="images/dgnb.png" style={{ width: '50px', height: '50px', objectFit: 'contain', borderRadius: '50%' }} className="bg-white rounded-full" alt="DGNB" />
+                                <img src="images/logo.png" style={{ width: '50px', height: '50px', objectFit: 'contain' }} alt="Logo" />
+                            </div>
+                            <h1 className="text-3xl font-black text-white mt-2">Bomberos <span className="text-red-500">Pedraza</span></h1>
+                            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">Acceso Exclusivo de Administradores</p>
+                        </div>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1.5">Email Institucional</label>
+                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input-field" placeholder="bombero@pedraza.gob.ve" required disabled={cargando} />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1.5">Contraseña</label>
+                                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="input-field" placeholder="••••••••" required disabled={cargando} />
+                            </div>
+                            {error && <div className="p-3 rounded-xl text-sm border bg-red-950/30 border-red-500/50 text-red-400">{error}</div>}
+                            <button type="submit" disabled={cargando} className="w-full btn-primary py-3 px-6 rounded-xl text-sm font-bold uppercase tracking-wider disabled:opacity-50">
+                                {cargando ? '⏳ Verificando...' : '🔐 INGRESAR'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        function GraficaBarras({ datos, titulo }) {
+            const maxValor = Math.max(...datos.map(d => d.valor), 1);
+            const colores = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
+            return (
+                <div className="space-y-3">
+                    <h4 className="text-sm font-bold text-slate-200">{titulo}</h4>
+                    {datos.map((d, i) => (
+                        <div key={i} className="space-y-1">
+                            <div className="flex justify-between text-xs">
+                                <span className="text-slate-300 font-medium">{d.nombre}</span>
+                                <span className="font-bold" style={{ color: colores[i % colores.length] }}>{d.valor}</span>
+                            </div>
+                            <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
+                                <div className="h-full rounded-full" style={{ width: `${(d.valor / maxValor) * 100}%`, backgroundColor: colores[i % colores.length] }}></div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        function Dashboard({ minutas }) {
+            const stats = React.useMemo(() => {
+                const totals = { total: minutas.length, servicios: {}, parroquias: {} };
+                minutas.forEach(m => {
+                    const s = m.servicioPersonalizado || m.servicioRealizado || 'Sin especificar';
+                    totals.servicios[s] = (totals.servicios[s] || 0) + 1;
+                    totals.parroquias[m.ubicacion] = (totals.parroquias[m.ubicacion] || 0) + 1;
+                });
+                return totals;
+            }, [minutas]);
+
+            return (
+                <div className="space-y-6">
+                    <h2 className="text-xl font-bold border-b border-slate-800 pb-2 text-red-500">📊 Estadísticas Operativas</h2>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 text-center">
+                            <p className="text-xs text-slate-400 uppercase font-bold">Total</p>
+                            <p className="text-4xl font-black text-red-500 mt-1">{stats.total}</p>
+                        </div>
+                        <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 text-center">
+                            <p className="text-xs text-slate-400 uppercase font-bold">Servicios</p>
+                            <p className="text-4xl font-black text-emerald-400 mt-1">{Object.keys(stats.servicios).length}</p>
+                        </div>
+                    </div>
+                    <div className="card"><GraficaBarras datos={Object.entries(stats.servicios).map(([nombre, valor]) => ({ nombre, valor })).sort((a,b) => b.valor - a.valor).slice(0, 5)} titulo="🔴 Servicios Realizados" /></div>
+                </div>
+            );
+        }
+
+        class ErrorBoundary extends React.Component {
+            constructor(props) { super(props); this.state = { hasError: false }; }
+            static getDerivedStateFromError() { return { hasError: true }; }
+            render() {
+                if (this.state.hasError) {
+                    return <div className="min-h-screen flex items-center justify-center bg-[#0a0f1a] p-4"><div className="card border-red-500/30 max-w-md w-full text-center"><h2 className="text-xl font-bold text-white mb-4">Error en la aplicación</h2><button onClick={() => window.location.reload()} className="btn-primary px-6 py-2 rounded-xl text-sm">🔄 Recargar</button></div></div>;
+                }
+                return this.props.children;
+            }
+        }
+
+        function App() {
+            const [activeTab, setActiveTab] = React.useState('formulario');
+            const [minutas, setMinutas] = React.useState([]);
+            const [notificacion, setNotificacion] = React.useState({ mensaje: '', tipo: 'success', visible: false });
+            const [filtroTexto, setFiltroTexto] = React.useState('');
+            const [filtroServicio, setFiltroServicio] = React.useState('Todos');
+            const [filtroTurno, setFiltroTurno] = React.useState('Todos');
+            const [minutaSeleccionada, setMinutaSeleccionada] = React.useState(null);
+            const [minutaEliminarConfirm, setMinutaEliminarConfirm] = React.useState(null);
+            const [editId, setEditId] = React.useState(null);
+            
+            const [user, setUser] = React.useState(AUTH.verificarSesion() ? { uid: AUTH.verificarSesion().uid, email: AUTH.verificarSesion().email } : null);
+            const [modoFuncionario, setModoFuncionario] = React.useState(!AUTH.verificarSesion());
+            
+            const [conexionEstado, setConexionEstado] = React.useState('conectado');
+            const [comprimiendo, setComprimiendo] = React.useState(false);
+            const [cargandoMinutas, setCargandoMinutas] = React.useState(true);
+            const [loginError, setLoginError] = React.useState('');
+
+            const initialFormState = {
+                fecha: new Date().toISOString().split('T')[0], turno: 'A', funcionario: '', reporta: '',
+                parteDiario: '', servicioRealizado: 'Seleccione un servicio...', servicioPersonalizado: '',
+                ubicacion: PARROQUIAS[0], direccion: '', cuadrantePaz: '', horaSalida: '', horaLlegada: '', horaRegreso: '',
+                estatus: 'Culminado', hipotesis: '', unidades: [], organismos: [], observaciones: '', imagenes: [], creadoPor: 'anonimo'
+            };
+
+            const [form, setForm] = React.useState(initialFormState);
+            const [menuUnidades, setMenuUnidades] = React.useState(false);
+            const [menuOrganismos, setMenuOrganismos] = React.useState(false);
+            const menuUnidadesRef = React.useRef(null);
+            const menuOrganismosRef = React.useRef(null);
+
+            const mostrarNotificacion = (mensaje, tipo = 'success') => {
+                setNotificacion({ mensaje, tipo, visible: true });
+                setTimeout(() => setNotificacion(prev => ({ ...prev, visible: false })), 3500);
+            };
+
+            React.useEffect(() => {
+                const locales = localStorage.getItem("MINUTAS_LOCALES_PEDRAZA");
+                if (locales) { try { setMinutas(JSON.parse(locales)); } catch(e) {} }
+                setCargandoMinutas(false);
+            }, []);
+
+            // Verificación de conexión en tiempo real
+            React.useEffect(() => {
+                const updateConnection = () => setConexionEstado(navigator.onLine ? 'conectado' : 'desconectado');
+                window.addEventListener('online', updateConnection);
+                window.addEventListener('offline', updateConnection);
+                updateConnection();
+                return () => {
+                    window.removeEventListener('online', updateConnection);
+                    window.removeEventListener('offline', updateConnection);
+                };
+            }, []);
+
+            // Escuchar autenticación de Admin
+            React.useEffect(() => {
+                const unsubscribeAuth = auth ? auth.onAuthStateChanged((usr) => {
+                    if (usr && esAdmin(usr.email)) {
+                        setUser(usr); setModoFuncionario(false); setConexionEstado('conectado');
+                    } else {
+                        setUser(null); setModoFuncionario(true); setConexionEstado(navigator.onLine ? 'conectado' : 'desconectado');
+                    }
+                }) : () => {};
+                return () => unsubscribeAuth();
+            }, []);
+
+            // Sincronizar Firestore (SOLO si hay Admin autenticado)
+            React.useEffect(() => {
+                if (!firebaseEnabled || !user) return;
+                const minutasRef = db.collection('minutos').orderBy('fecha', 'desc');
+                const unsubscribe = minutasRef.onSnapshot((snapshot) => {
+                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setMinutas(data);
+                    localStorage.setItem("MINUTAS_LOCALES_PEDRAZA", JSON.stringify(data));
+                    setCargandoMinutas(false); setConexionEstado('conectado');
+                }, (error) => {
+                    setConexionEstado('desconectado');
+                    const locales = localStorage.getItem("MINUTAS_LOCALES_PEDRAZA");
+                    if (locales) { try { setMinutas(JSON.parse(locales)); setCargandoMinutas(false); } catch (e) {} }
+                });
+                return () => unsubscribe();
+            }, [user]);
+
+            React.useEffect(() => {
+                function handleClickOutside(e) {
+                    if (menuUnidadesRef.current && !menuUnidadesRef.current.contains(e.target)) setMenuUnidades(false);
+                    if (menuOrganismosRef.current && !menuOrganismosRef.current.contains(e.target)) setMenuOrganismos(false);
+                }
+                document.addEventListener("mousedown", handleClickOutside);
+                return () => document.removeEventListener("mousedown", handleClickOutside);
+            }, []);
+
+            const limpiarFormulario = () => {
+                if (editId) setEditId(null);
+                setForm({ ...initialFormState, fecha: new Date().toISOString().split('T')[0], servicioPersonalizado: '' });
+                mostrarNotificacion("Formulario limpiado", "success");
+            };
+
+            const procesarImagenes = (e) => {
+                const files = Array.from(e.target.files);
+                if (form.imagenes.length + files.length > 4) { mostrarNotificacion("Máximo 4 fotos", "error"); return; }
+                setComprimiendo(true);
+                let procesados = 0;
+                files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.src = event.target.result;
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            const MAX_WIDTH = 1024;
+                            const scaleSize = MAX_WIDTH / img.width;
+                            canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            const base64Str = canvas.toDataURL('image/jpeg', 0.75);
+                            setForm(prev => ({ ...prev, imagenes: [...prev.imagenes, base64Str] }));
+                            procesados++;
+                            if (procesados === files.length) { setComprimiendo(false); mostrarNotificacion("Imágenes listas"); }
+                        };
+                    };
+                });
+            };
+
+            const removerImagen = (index) => setForm(prev => ({ ...prev, imagenes: prev.imagenes.filter((_, i) => i !== index) }));
+
+            const copiarAlPortapapeles = (texto) => {
+                navigator.clipboard.writeText(texto).then(() => mostrarNotificacion("¡Texto copiado!")).catch(() => mostrarNotificacion("Error al copiar", "error"));
+            };
+
+            const descargarPDF = (minuta) => {
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait', compress: true });
+
+                    const servicio = minuta.servicioPersonalizado || minuta.servicioRealizado || 'No especificado';
+                    const fechaFormateada = minuta.fecha ? minuta.fecha.split('-').reverse().join('/') : 'N/R';
+                    
+                    const margenIzq = 25; 
+                    const margenDer = 25; 
+                    const margenSup = 15; 
+                    
+                    let y = margenSup;
+                    const pageWidth = 215.9; 
+                    const pageHeight = 279.4;
+                    const anchoUtil = pageWidth - margenIzq - margenDer;
+                    const centroPagina = pageWidth / 2;
+
+                    const negro = [0, 0, 0];
+                    const grisOscuro = [60, 60, 60];
+                    const azulInstitucional = [15, 43, 92];
+
+                    const cargarImagen = (src) => new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.onerror = () => resolve(null);
+                        img.src = src;
+                    });
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(13);
+                    doc.setTextColor(azulInstitucional[0], azulInstitucional[1], azulInstitucional[2]);
+                    doc.text('REPÚBLICA BOLIVARIANA DE VENEZUELA', centroPagina, y + 5, { align: 'center' });
+                    y += 10;
+
+                    doc.setFontSize(10);
+                    doc.setTextColor(negro[0], negro[1], negro[2]);
+                    doc.text('CUERPO DE BOMBEROS DEL MUNICIPIO PEDRAZA', centroPagina, y, { align: 'center' });
+                    y += 5;
+
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(8);
+                    doc.setTextColor(grisOscuro[0], grisOscuro[1], grisOscuro[2]);
+                    doc.text('REDAN: Los Llanos - ZOEDAN: Barinas - UNIDAD DE OPERACIONES', centroPagina, y, { align: 'center' });
+                    y += 8;
+
+                    doc.setDrawColor(0, 0, 0);
+                    doc.setLineWidth(0.8);
+                    doc.line(margenIzq, y, pageWidth - margenDer, y);
+                    y += 6;
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(14);
+                    doc.setTextColor(negro[0], negro[1], negro[2]);
+                    doc.text('REPORTE OPERATIVO OFICIAL DE SERVICIO', centroPagina, y, { align: 'center' });
+                    y += 4;
+
+                    doc.setDrawColor(0, 0, 0);
+                    doc.setLineWidth(0.8);
+                    doc.line(margenIzq, y, pageWidth - margenDer, y);
+                    y += 8;
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(9);
+                    doc.setTextColor(negro[0], negro[1], negro[2]);
+
+                    const col1_x = margenIzq; 
+                    const col2_x = margenIzq + 50; 
+                    const col3_x = margenIzq + 105; 
+
+                    doc.text('FECHA:', col1_x, y);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(fechaFormateada, col1_x + 20, y);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('GUARDIA:', col3_x, y);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(minuta.turno || 'N/R', col3_x + 25, y);
+                    y += 7;
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('COMANDANTE:', col1_x, y);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(minuta.funcionario || 'N/R', col1_x + 30, y);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('CUADRANTE:', col3_x, y);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(minuta.cuadrantePaz || 'N/R', col3_x + 25, y);
+                    y += 7;
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('REPORTA:', col1_x, y);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(minuta.reporta || minuta.funcionario || 'N/R', col1_x + 25, y);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('PARROQUIA:', col3_x, y);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(minuta.ubicacion?.replace("PARROQUIA ", "") || 'N/R', col3_x + 25, y);
+                    y += 7;
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('PARTE DIARIO:', col1_x, y);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(minuta.parteDiario || 'N/R', col1_x + 30, y);
+                    y += 7;
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('SERVICIO:', col1_x, y);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(servicio, col1_x + 25, y);
+                    y += 7;
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('DIRECCIÓN:', col1_x, y);
+                    doc.setFont('helvetica', 'normal');
+                    const dirLines = doc.splitTextToSize(minuta.direccion || 'No registrada', anchoUtil - 35);
+                    doc.text(dirLines, col1_x + 25, y);
+                    y += (dirLines.length * 5) + 4;
+
+                    doc.setDrawColor(0, 0, 0);
+                    doc.setLineWidth(0.5);
+                    doc.line(margenIzq, y, pageWidth - margenDer, y);
+                    y += 5;
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(10);
+                    doc.text('CRONOMETRÍA OPERATIVA', centroPagina, y, { align: 'center' });
+                    y += 6;
+
+                    const cajaAncho = (anchoUtil - 10) / 3;
+                    const cajaAlto = 12;
+                    const horas = [
+                        { label: 'HORA DE SALIDA', value: minuta.horaSalida || 'N/R' },
+                        { label: 'HORA DE LLEGADA', value: minuta.horaLlegada || 'N/R' },
+                        { label: 'HORA DE RETORNO', value: minuta.horaRegreso || 'N/R' }
+                    ];
+
+                    horas.forEach((h, i) => {
+                        const xPos = margenIzq + (i * (cajaAncho + 5));
+                        doc.setDrawColor(0, 0, 0);
+                        doc.setLineWidth(0.5);
+                        doc.rect(xPos, y, cajaAncho, cajaAlto);
+                        
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFontSize(7);
+                        doc.setTextColor(grisOscuro[0], grisOscuro[1], grisOscuro[2]);
+                        doc.text(h.label, xPos + 2, y + 4);
+                        
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFontSize(10);
+                        doc.setTextColor(negro[0], negro[1], negro[2]);
+                        doc.text(h.value, xPos + 2, y + 9.5);
+                    });
+                    y += cajaAlto + 8;
+
+                    doc.setDrawColor(0, 0, 0);
+                    doc.setLineWidth(0.5);
+                    doc.line(margenIzq, y, pageWidth - margenDer, y);
+                    y += 5;
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(10);
+                    doc.text('RESUMEN OPERATIVO', centroPagina, y, { align: 'center' });
+                    y += 6;
+
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(9);
+                    doc.setTextColor(negro[0], negro[1], negro[2]);
+                    const obsLines = doc.splitTextToSize(minuta.observaciones || 'Sin observaciones.', anchoUtil);
+                    doc.text(obsLines, margenIzq, y);
+                    y += (obsLines.length * 5) + 6;
+
+                    doc.setDrawColor(0, 0, 0);
+                    doc.setLineWidth(0.5);
+                    doc.line(margenIzq, y, pageWidth - margenDer, y);
+                    y += 5;
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(9);
+                    doc.text('RECURSOS DESPLEGADOS:', margenIzq, y);
+                    doc.setFont('helvetica', 'normal');
+                    const unidadesTexto = minuta.unidades?.length > 0 ? minuta.unidades.join(', ') : 'Ninguna';
+                    const uniLines = doc.splitTextToSize(unidadesTexto, anchoUtil - 50);
+                    doc.text(uniLines, margenIzq + 50, y);
+                    y += Math.max(uniLines.length * 5, 7);
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('APOYO EXTERNO:', margenIzq, y);
+                    doc.setFont('helvetica', 'normal');
+                    const organismosTexto = minuta.organismos?.length > 0 ? minuta.organismos.join(', ') : 'Ninguno';
+                    const orgLines = doc.splitTextToSize(organismosTexto, anchoUtil - 40);
+                    doc.text(orgLines, margenIzq + 40, y);
+                    y += Math.max(orgLines.length * 5, 7) + 1;
+
+                    doc.setDrawColor(0, 0, 0);
+                    doc.setLineWidth(0.5);
+                    doc.line(margenIzq, y, pageWidth - margenDer, y);
+                    y += 5;
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(10);
+                    doc.text('CIERRE DEL SERVICIO', centroPagina, y, { align: 'center' });
+                    y += 6;
+
+                    doc.setFontSize(9);
+                    doc.text('ESTATUS:', margenIzq, y);
+                    const estatusColor = minuta.estatus === 'Culminado' ? [20, 150, 80] : minuta.estatus === 'En Curso' ? [200, 150, 20] : [150, 50, 50];
+                    doc.setTextColor(estatusColor[0], estatusColor[1], estatusColor[2]);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(minuta.estatus || 'Culminado', margenIzq + 20, y);
+                    
+                    doc.setTextColor(negro[0], negro[1], negro[2]);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('HIPÓTESIS:', margenIzq + 70, y);
+                    doc.setFont('helvetica', 'normal');
+                    const hipLines = doc.splitTextToSize(minuta.hipotesis || 'EN PROCESO DE INVESTIGACIÓN', anchoUtil - 100);
+                    doc.text(hipLines, margenIzq + 90, y);
+                    y += (hipLines.length * 5) + 10;
+
+                    if (minuta.imagenes && minuta.imagenes.length > 0) {
+                        doc.setDrawColor(0, 0, 0);
+                        doc.setLineWidth(0.5);
+                        doc.line(margenIzq, y, pageWidth - margenDer, y);
+                        y += 5;
+
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFontSize(10);
+                        doc.text('EVIDENCIA FOTOGRÁFICA', centroPagina, y, { align: 'center' });
+                        y += 6;
+
+                        const maxImagenes = Math.min(minuta.imagenes.length, 4);
+                        const margenFoto = 5;
+                        const imgWidth = (anchoUtil - (margenFoto * (maxImagenes - 1))) / maxImagenes;
+                        const imgHeight = imgWidth * 0.75;
+                        
+                        const espacioRestante = pageHeight - margenSup - y - 10;
+                        let escala = 1;
+                        if (imgHeight > espacioRestante) escala = espacioRestante / imgHeight;
+
+                        const imgWFinal = imgWidth * escala;
+                        const imgHFinal = imgHeight * escala;
+                        
+                        for (let i = 0; i < maxImagenes; i++) {
+                            try {
+                                const imgData = minuta.imagenes[i];
+                                if (imgData && imgData.length > 100) {
+                                    const xPos = margenIzq + (i * (imgWFinal + margenFoto));
+                                    doc.addImage(imgData, 'JPEG', xPos, y, imgWFinal, imgHFinal);
+                                }
+                            } catch (e) { }
+                        }
+                        y += imgHFinal + 5;
+                    }
+
+                    doc.setDrawColor(0, 0, 0);
+                    doc.setLineWidth(0.8);
+                    doc.line(margenIzq, y, pageWidth - margenDer, y);
+                    y += 10;
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(10);
+                    doc.text('"Disciplina y Abnegación"', centroPagina, y, { align: 'center' });
+                    y += 5;
+
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(7);
+                    doc.setTextColor(grisOscuro[0], grisOscuro[1], grisOscuro[2]);
+                    doc.text('Documento Generado Electrónicamente', centroPagina, y, { align: 'center' });
+                    y += 4;
+                    doc.text('Cuerpo de Bomberos del Municipio Pedraza - Estado Barinas', centroPagina, y, { align: 'center' });
+                    y += 4;
+                    doc.setFontSize(5);
+                    doc.setTextColor(180, 180, 180);
+                    doc.text(`Verificado mediante el Sistema de Emergencias del Estado Barinas · ${new Date().toLocaleDateString()}`, centroPagina, y, { align: 'center' });
+
+                    Promise.all([cargarImagen('images/dgnb.png'), cargarImagen('images/logo.png')]).then(([dgnbImg, logoImg]) => {
+                        try {
+                            const logoSize = 24;
+                            const offsetY = margenSup - 5;
+                            if (dgnbImg) doc.addImage(dgnbImg, 'PNG', margenIzq - 5, offsetY, logoSize, logoSize);
+                            if (logoImg) doc.addImage(logoImg, 'PNG', pageWidth - margenDer - logoSize + 5, offsetY, logoSize, logoSize);
+                            
+                            const fileName = `Minuta_BomberosPedraza_${minuta.fecha || 'fecha'}_${minuta.id?.slice(0,6) || 'local'}.pdf`;
+                            doc.save(fileName);
+                            mostrarNotificacion("✅ PDF generado con éxito");
+                        } catch (error) {
+                            const fileName = `Minuta_BomberosPedraza_${minuta.fecha || 'fecha'}_${minuta.id?.slice(0,6) || 'local'}.pdf`;
+                            doc.save(fileName);
+                            mostrarNotificacion("✅ PDF generado con éxito");
+                        }
+                    });
+
+                } catch (error) {
+                    LOGGER.error('Error generando PDF:', error);
+                    mostrarNotificacion("Error al generar PDF", "error");
+                }
+            };
+
+            const guardarMinuta = async (e) => {
+                e.preventDefault();
+                try {
+                    if (!form.funcionario || !form.direccion || !form.observaciones) { mostrarNotificacion("Complete los campos requeridos", "error"); return; }
+                    let servicio = form.servicioRealizado;
+                    if (servicio === 'Otro Servicio no Señalado') {
+                        if (!form.servicioPersonalizado || form.servicioPersonalizado.trim() === '') { mostrarNotificacion("Escribe el nombre del servicio personalizado", "error"); return; }
+                        servicio = form.servicioPersonalizado;
+                    }
+                    if (!servicio || servicio === 'Seleccione un servicio...') { mostrarNotificacion("Seleccione un servicio válido", "error"); return; }
+
+                    const datosMinuta = {
+                        ...form, servicioRealizado: servicio, servicioPersonalizado: form.servicioPersonalizado || '',
+                        parteDiario: form.parteDiario || '',
+                        creadoPor: user?.uid || 'anonimo', creadoEmail: user?.email || 'Funcionario (sin login)', creadoEn: new Date().toISOString()
+                    };
+
+                    // Si Firebase está conectado Y hay Admin autenticado, guardar en la nube
+                    if (firebaseEnabled && user && conexionEstado === 'conectado') {
+                        try {
+                            const minutasRef = db.collection('minutos');
+                            if (editId) {
+                                await minutasRef.doc(editId).update({ ...datosMinuta });
+                                mostrarNotificacion("Minuta actualizada");
+                            } else {
+                                await minutasRef.add({ ...datosMinuta });
+                                mostrarNotificacion("Minuta guardada");
+                            }
+                        } catch (err) {
+                            // Si falla por algún motivo, guardar localmente
+                            respaldarLocalmente(datosMinuta);
+                            mostrarNotificacion("⚠️ Guardado local (sin conexión)", "warning");
+                        }
+                    } else {
+                        // Si NO hay Admin o NO hay conexión, el Funcionario guarda localmente
+                        respaldarLocalmente(datosMinuta);
+                        mostrarNotificacion("💾 Guardado localmente", "warning");
+                    }
+                    cancelarEdicion(); setActiveTab('lista');
+                } catch (error) {
+                    mostrarNotificacion("Error al guardar", "error");
+                }
+            };
+
+            const respaldarLocalmente = (datosMinuta) => {
+                try {
+                    const localId = editId || `local_${Date.now()}`;
+                    const nuevaMinuta = { id: localId, ...datosMinuta, offline: true };
+                    let nuevasMinutas = [...minutas];
+                    if (editId) nuevasMinutas = nuevasMinutas.map(m => m.id === editId ? nuevaMinuta : m);
+                    else nuevasMinutas.unshift(nuevaMinuta);
+                    setMinutas(nuevasMinutas);
+                    localStorage.setItem("MINUTAS_LOCALES_PEDRAZA", JSON.stringify(nuevasMinutas));
+                } catch (error) { LOGGER.error('Error guardando localmente', { error }); }
+            };
+
+            // Función para que el Admin sincronice los reportes offline de los funcionarios
+            const sincronizarOffline = async () => {
+                if (!user) { mostrarNotificacion("Debes iniciar sesión como Admin", "error"); return; }
+                if (conexionEstado !== 'conectado') { mostrarNotificacion("Sin conexión a internet", "error"); return; }
+
+                const elementosOffline = minutas.filter(m => m.offline);
+                if (elementosOffline.length === 0) { mostrarNotificacion("No hay datos pendientes por sincronizar"); return; }
+
+                mostrarNotificacion("Sincronizando datos...");
+                try {
+                    const minutasRef = db.collection('minutos');
+                    let sincronizados = 0;
+                    for (const local of elementosOffline) {
+                        const { id, offline, ...payload } = local;
+                        await minutasRef.add({ ...payload, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+                        sincronizados++;
+                    }
+                    const actualizadas = minutas.map(m => m.offline ? { ...m, offline: false } : m);
+                    setMinutas(actualizadas);
+                    localStorage.setItem("MINUTAS_LOCALES_PEDRAZA", JSON.stringify(actualizadas));
+                    mostrarNotificacion(`✅ ${sincronizados} reportes sincronizados`);
+                } catch (e) {
+                    mostrarNotificacion("Error al sincronizar", "error");
+                }
+            };
+
+            const activarEdicion = (minuta) => {
+                if (!usuarioEsAdmin) { mostrarNotificacion('❌ No tienes permisos para editar', 'error'); return; }
+                const esOtro = minuta.servicioPersonalizado && minuta.servicioPersonalizado.length > 0;
+                setForm({
+                    fecha: minuta.fecha, turno: minuta.turno, funcionario: minuta.funcionario,
+                    reporta: minuta.reporta || '', parteDiario: minuta.parteDiario || '',
+                    servicioRealizado: esOtro ? 'Otro Servicio no Señalado' : (minuta.servicioRealizado || 'Seleccione un servicio...'),
+                    servicioPersonalizado: minuta.servicioPersonalizado || '', ubicacion: minuta.ubicacion,
+                    direccion: minuta.direccion, cuadrantePaz: minuta.cuadrantePaz || '', horaSalida: minuta.horaSalida || '',
+                    horaLlegada: minuta.horaLlegada || '', horaRegreso: minuta.horaRegreso || '', estatus: minuta.estatus || 'Culminado',
+                    hipotesis: minuta.hipotesis || '', unidades: minuta.unidades || [], organismos: minuta.organismos || [],
+                    observaciones: minuta.observaciones || '', imagenes: minuta.imagenes || [], creadoPor: minuta.creadoPor || user?.uid || 'anonimo'
+                });
+                setEditId(minuta.id); setActiveTab('formulario'); window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            const cancelarEdicion = () => {
+                setEditId(null);
+                setForm({ ...initialFormState, fecha: new Date().toISOString().split('T')[0], servicioPersonalizado: '' });
+            };
+
+            const eliminarMinuta = async (id) => {
+                if (!usuarioEsAdmin) { mostrarNotificacion('❌ Sin permisos', 'error'); return; }
+                try {
+                    if (firebaseEnabled && !String(id).startsWith('local_')) {
+                        await db.collection('minutos').doc(id).delete();
+                    } else {
+                        const filtradas = minutas.filter(m => m.id !== id);
+                        setMinutas(filtradas);
+                        localStorage.setItem("MINUTAS_LOCALES_PEDRAZA", JSON.stringify(filtradas));
+                    }
+                    mostrarNotificacion("Registro eliminado");
+                } catch (error) { mostrarNotificacion("Error al eliminar", "error"); }
+                setMinutaEliminarConfirm(null);
+            };
+
+            const toggleUnidad = (unidad) => setForm(prev => ({ ...prev, unidades: prev.unidades.includes(unidad) ? prev.unidades.filter(u => u !== unidad) : [...prev.unidades, unidad] }));
+            const toggleOrganismo = (org) => setForm(prev => ({ ...prev, organismos: prev.organismos.includes(org) ? prev.organismos.filter(o => o !== org) : [...prev.organismos, org] }));
+
+            const minutasFiltradas = React.useMemo(() => {
+                return minutas.filter(m => {
+                    const servicio = m.servicioPersonalizado || m.servicioRealizado || '';
+                    return (m.direccion?.toLowerCase().includes(filtroTexto.toLowerCase()) || m.funcionario?.toLowerCase().includes(filtroTexto.toLowerCase())) && (filtroServicio === 'Todos' || servicio === filtroServicio) && (filtroTurno === 'Todos' || m.turno === filtroTurno);
+                });
+            }, [minutas, filtroTexto, filtroServicio, filtroTurno]);
+
+            const serviciosUnicos = React.useMemo(() => ['Todos', ...Array.from(new Set(minutas.map(m => m.servicioPersonalizado || m.servicioRealizado).filter(Boolean)))], [minutas]);
+
+            const obtenerTextoFormateado = (minuta) => `SISTEMA NACIONAL DE ADMINISTRACIÓN DE EMERGENCIAS\n\nREDAN: Los Llanos | ZOEDAN: Barinas | MUNICIPIO: PEDRAZA\nPARROQUIA: ${minuta.ubicacion?.replace("PARROQUIA ", "") || 'N/R'}\n\nFECHA: ${minuta.fecha?.split('-').reverse().join('/') || 'N/R'}\nHORA SALIDA: ${minuta.horaSalida || 'N/R'} | LLEGADA: ${minuta.horaLlegada || 'N/R'} | RETORNO: ${minuta.horaRegreso || 'N/R'}\n\nDIRECCIÓN: ${minuta.direccion}\nCUADRANTE DE PAZ: ${minuta.cuadrantePaz || 'N/R'}\n\nSERVICIO REALIZADO: ${minuta.servicioPersonalizado || minuta.servicioRealizado}\n\nPARTE DIARIO: ${minuta.parteDiario || 'N/R'}\n\nRESUMEN:\n${minuta.observaciones}\n\nUNIDADES: ${minuta.unidades?.join(', ') || 'Ninguna'}\nAPOYO: ${minuta.organismos?.join(', ') || 'Ninguno'}\n\nESTATUS: ${minuta.estatus}\nHIPÓTESIS: ${minuta.hipotesis || 'EN PROCESO'}\n\nCOMANDANTE: ${minuta.funcionario}\nREPORTA: ${minuta.reporta || minuta.funcionario}\n\n"DISCIPLINA Y ABNEGACIÓN"\nCUERPO DE BOMBEROS DEL MUNICIPIO PEDRAZA - BARINAS`;
+
+            const usuarioSeccion = user ? obtenerNombreSeccion(user.email) : 'Funcionario';
+            const usuarioEsAdmin = user ? esAdmin(user.email) : false;
+
+            if (cargandoMinutas && !user) {
+                return <div className="min-h-screen flex items-center justify-center bg-[#0a0f1a]"><div className="text-center"><img src="images/logo.png" className="w-20 h-20 mx-auto animate-pulse" /><h2 className="text-lg font-bold text-white mt-4">Cargando sistema...</h2></div></div>;
+            }
+
+            if (user === 'SOLICITAR_ADMIN') {
+                return <PantallaLogin onLogin={(usr) => { setUser(usr); setModoFuncionario(false); }} errorInicial={loginError} />;
+            }
+
+            return (
+                <ErrorBoundary>
+                    <div className="max-w-6xl mx-auto p-4 md:p-6 pb-20 relative">
+                        {notificacion.visible && (
+                            <div className={`fixed bottom-6 right-6 z-[9999] px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border ${notificacion.tipo === 'success' ? 'bg-slate-900 border-emerald-500/50 text-emerald-400' : 'bg-slate-900 border-red-500/50 text-red-400'}`}>
+                                <span>{notificacion.tipo === 'success' ? '✅' : '🚨'}</span>
+                                <span className="text-xs font-bold uppercase">{notificacion.mensaje}</span>
+                            </div>
+                        )}
+
+                        {/* BARRA DE ESTADO Y ACCESO ADMIN (ENLACE A INTERNET) */}
+                        <div className="mb-4">
+                            {(conexionEstado === 'conectado') ? (
+                                <div className="bg-emerald-950/20 border border-emerald-500/30 text-emerald-400 text-xs px-4 py-2.5 rounded-xl flex items-center justify-between flex-wrap gap-2">
+                                    <div className="flex items-center gap-2 font-bold uppercase">
+                                        <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping"></span>
+                                        <span className="hidden sm:inline">Enlace Activo</span>
+                                        <span className="sm:hidden">🟢</span>
+                                        <span className="text-emerald-500/70 font-normal text-[9px]">{usuarioSeccion}</span>
+                                    </div>
+                                    <div className="flex gap-2 items-center">
+                                        {minutas.some(m => m.offline) && (
+                                            <button onClick={sincronizarOffline} className="btn-accion btn-success text-[9px] px-3 py-1 rounded-lg">
+                                                Sincronizar 💾
+                                            </button>
+                                        )}
+                                        {usuarioEsAdmin ? (
+                                            <button onClick={() => { if (confirm('¿Cerrar sesión de administrador?')) { AUTH.cerrarSesion(); setUser(null); setModoFuncionario(true); } }} className="btn-accion bg-red-950/30 hover:bg-red-950/50 text-red-400 border border-red-900/50 px-3 py-1 rounded-lg text-[9px]">
+                                                Salir Admin
+                                            </button>
+                                        ) : (
+                                            <button onClick={() => { setLoginError(''); setUser('SOLICITAR_ADMIN'); }} className="btn-accion bg-amber-900/30 hover:bg-amber-900/50 text-amber-400 border border-amber-900/50 px-3 py-1 rounded-lg text-[9px]">
+                                                🔐 Acceso Admin
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="bg-amber-950/40 border border-amber-500/40 text-amber-400 text-xs px-4 py-2.5 rounded-xl flex items-center justify-between flex-wrap gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-amber-400">📡</span>
+                                        <span className="text-amber-400 font-bold uppercase">Modo Offline Activo</span>
+                                        <span className="text-amber-500/70 font-normal text-[9px]">Sin conexión a internet</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        {usuarioEsAdmin ? (
+                                            <button onClick={() => { if (confirm('¿Cerrar sesión de administrador?')) { AUTH.cerrarSesion(); setUser(null); setModoFuncionario(true); } }} className="btn-accion bg-red-950/30 hover:bg-red-950/50 text-red-400 border border-red-900/50 px-3 py-1 rounded-lg text-[9px]">
+                                                Salir Admin
+                                            </button>
+                                        ) : (
+                                            <button onClick={() => { setLoginError(''); setUser('SOLICITAR_ADMIN'); }} className="btn-accion bg-amber-900/30 hover:bg-amber-900/50 text-amber-400 border border-amber-900/50 px-3 py-1 rounded-lg text-[9px]">
+                                                🔐 Acceso Admin
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* HEADER */}
+                        <header className="flex flex-col md:flex-row items-center justify-between mb-8 pb-4 border-b border-slate-800 gap-4">
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-3 bg-slate-900 rounded-full border border-slate-800 p-2 pr-4">
+                                    <img src="images/dgnb.png" style={{ width: '50px', height: '50px', objectFit: 'contain', borderRadius: '50%' }} className="bg-white rounded-full" alt="DGNB" />
+                                    <img src="images/logo.png" style={{ width: '50px', height: '50px', objectFit: 'contain' }} alt="Logo" />
+                                </div>
+                                <div>
+                                    <h1 className="text-xl font-black text-white uppercase">Bomberos <span className="text-red-500">Pedraza</span></h1>
+                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">SISTEMA DE CONTROL DE MINUTAS v3.1</p>
+                                    <p className="text-[8px] font-bold uppercase tracking-wider" style={{ color: usuarioEsAdmin ? '#f59e0b' : '#60a5fa' }}>{usuarioEsAdmin ? '👑 ADMIN' : `👨‍🚒 ${usuarioSeccion}`}</p>
+                                </div>
+                            </div>
+                            <div className="flex bg-slate-900 rounded-xl p-1 border border-slate-800 shadow-inner w-full md:w-auto overflow-x-auto">
+                                <button onClick={() => setActiveTab('formulario')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'formulario' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'}`}>{editId ? '📝 Editando' : '➕ Nueva'}</button>
+                                <button onClick={() => setActiveTab('lista')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'lista' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'}`}>📋 Historial ({minutas.length})</button>
+                                {usuarioEsAdmin && <button onClick={() => setActiveTab('estadisticas')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'estadisticas' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'}`}>📊 Estadísticas</button>}
+                            </div>
+                        </header>
+
+                        {activeTab === 'formulario' && (
+                            <form onSubmit={guardarMinuta} className="card space-y-6">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <div className="space-y-4">
+                                        <h3 className="text-xs font-bold text-red-500 uppercase tracking-widest border-b border-slate-800 pb-2">🚨 Información</h3>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div><label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Fecha *</label><input type="date" value={form.fecha} onChange={e => setForm({...form, fecha: e.target.value})} required className="input-field" /></div>
+                                            <div><label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Turno *</label><select value={form.turno} onChange={e => setForm({...form, turno: e.target.value})} className="input-field"><option value="A">Guardia A</option><option value="B">Guardia B</option><option value="C">Guardia C</option></select></div>
+                                        </div>
+                                        <div><label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Parte Diario</label><textarea rows="2" value={form.parteDiario} onChange={e => setForm({...form, parteDiario: e.target.value})} placeholder="Escribe aquí el parte diario..." className="input-field resize-none"></textarea></div>
+                                        <div><label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Comandante del Servicio *</label><input type="text" value={form.funcionario} onChange={e => setForm({...form, funcionario: e.target.value})} required placeholder="Cap. Pérez" className="input-field" /></div>
+                                        <div><label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Funcionario que Reporta *</label><input type="text" value={form.reporta} onChange={e => setForm({...form, reporta: e.target.value})} required placeholder="Sgto. Gómez" className="input-field" /></div>
+                                        <div><label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Servicio *</label><select value={form.servicioRealizado} onChange={(e) => setForm({...form, servicioRealizado: e.target.value})} className="input-field"><option value="Seleccione un servicio...">Seleccione...</option>{LISTA_SERVICIOS.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+                                        <div><label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Servicio Personalizado <span className="text-slate-500 font-normal">(Opcional)</span></label><input type="text" value={form.servicioPersonalizado} onChange={e => setForm({...form, servicioPersonalizado: e.target.value})} placeholder="Ej: Rescate en Altura" className="input-field" /></div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div><label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Parroquia *</label><select value={form.ubicacion} onChange={e => setForm({...form, ubicacion: e.target.value})} className="input-field">{PARROQUIAS.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
+                                            <div><label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Cuadrante</label><input type="text" value={form.cuadrantePaz} onChange={e => setForm({...form, cuadrantePaz: e.target.value})} placeholder="CP-03" className="input-field" /></div>
+                                        </div>
+                                        <div><label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Dirección *</label><textarea rows="2" value={form.direccion} onChange={e => setForm({...form, direccion: e.target.value})} required placeholder="Ubicación exacta..." className="input-field resize-none" /></div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <h3 className="text-xs font-bold text-red-500 uppercase tracking-widest border-b border-slate-800 pb-2">⏱️ Cronometría</h3>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div><label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">Salida</label><input type="time" value={form.horaSalida} onChange={e => setForm({...form, horaSalida: e.target.value})} className="input-field" /></div>
+                                            <div><label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">Llegada</label><input type="time" value={form.horaLlegada} onChange={e => setForm({...form, horaLlegada: e.target.value})} className="input-field" /></div>
+                                            <div><label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">Retorno</label><input type="time" value={form.horaRegreso} onChange={e => setForm({...form, horaRegreso: e.target.value})} className="input-field" /></div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div><label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Estatus</label><select value={form.estatus} onChange={e => setForm({...form, estatus: e.target.value})} className="input-field"><option value="Culminado">Culminado</option><option value="En Curso">En Curso</option><option value="Cancelado / Falsa Alarma">Cancelado</option></select></div>
+                                            <div><label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Hipótesis</label><input type="text" value={form.hipotesis} onChange={e => setForm({...form, hipotesis: e.target.value})} placeholder="Ej: Falla Eléctrica" className="input-field" /></div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="relative" ref={menuUnidadesRef}>
+                                                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Unidades</label>
+                                                <button type="button" onClick={() => setMenuUnidades(!menuUnidades)} className="input-field text-left flex justify-between items-center"><span>{form.unidades.length > 0 ? `${form.unidades.length} Unidades` : 'Seleccionar'}</span><span>▼</span></button>
+                                                {menuUnidades && <div className="absolute top-full left-0 z-20 w-full mt-1 bg-slate-900 border border-slate-800 rounded-lg shadow-xl p-2 max-h-48 overflow-y-auto">{UNIDADES.map(u => <div key={u} onClick={() => toggleUnidad(u)} className={`p-2 rounded cursor-pointer text-xs ${form.unidades.includes(u) ? 'bg-red-600/20 text-red-400' : 'hover:bg-slate-800 text-slate-300'}`}>{u}</div>)}</div>}
+                                            </div>
+                                            <div className="relative" ref={menuOrganismosRef}>
+                                                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Organismos</label>
+                                                <button type="button" onClick={() => setMenuOrganismos(!menuOrganismos)} className="input-field text-left flex justify-between items-center"><span>{form.organismos.length > 0 ? `${form.organismos.length} Apoyos` : 'Seleccionar'}</span><span>▼</span></button>
+                                                {menuOrganismos && <div className="absolute top-full left-0 z-20 w-full mt-1 bg-slate-900 border border-slate-800 rounded-lg shadow-xl p-2 max-h-48 overflow-y-auto">{ORGANISMOS.map(o => <div key={o} onClick={() => toggleOrganismo(o)} className={`p-2 rounded cursor-pointer text-xs ${form.organismos.includes(o) ? 'bg-indigo-600/20 text-indigo-400' : 'hover:bg-slate-800 text-slate-300'}`}>{o}</div>)}</div>}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Fotos (Máx. 4)</label>
+                                            <div className="flex gap-2 items-center"><input type="file" multiple accept="image/*" onChange={procesarImagenes} className="hidden" id="subida-imagenes" disabled={comprimiendo} /><label htmlFor="subida-imagenes" className="btn-accion btn-secondary cursor-pointer text-xs">📷 {comprimiendo ? 'Comprimiendo...' : 'Subir'}</label><span className="text-[10px] text-slate-500">{form.imagenes.length} de 4</span></div>
+                                            <div className="grid grid-cols-4 gap-2 mt-2">{form.imagenes.map((base64, idx) => <div key={idx} className="relative aspect-video rounded-lg overflow-hidden border border-slate-800"><img src={base64} className="object-cover w-full h-full" alt="Evidencia" /><button type="button" onClick={() => removerImagen(idx)} className="absolute top-1 right-1 bg-red-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold">✕</button></div>)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div><label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Resumen *</label><textarea rows="4" value={form.observaciones} onChange={e => setForm({...form, observaciones: e.target.value})} required placeholder="Relato operativo..." className="input-field resize-none" /></div>
+                                <div className="flex gap-3 justify-end border-t border-slate-800 pt-4">
+                                    <button type="button" onClick={limpiarFormulario} className="btn-accion btn-secondary">🧹 Limpiar</button>
+                                    {editId && <button type="button" onClick={cancelarEdicion} className="btn-accion btn-secondary">Cancelar</button>}
+                                    <button type="submit" disabled={comprimiendo} className="btn-accion btn-primary px-6 py-2.5 rounded-xl text-sm">{editId ? '✓ Guardar' : '💾 Guardar'}</button>
+                                </div>
+                            </form>
+                        )}
+
+                        {activeTab === 'lista' && (
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 card">
+                                    <div><label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Buscar</label><input type="text" placeholder="Buscar..." value={filtroTexto} onChange={e => setFiltroTexto(e.target.value)} className="input-field" /></div>
+                                    <div><label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Servicio</label><select value={filtroServicio} onChange={e => setFiltroServicio(e.target.value)} className="input-field">{serviciosUnicos.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+                                    <div><label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Turno</label><select value={filtroTurno} onChange={e => setFiltroTurno(e.target.value)} className="input-field"><option value="Todos">Todos</option><option value="A">Guardia A</option><option value="B">Guardia B</option><option value="C">Guardia C</option></select></div>
+                                </div>
+
+                                {minutasFiltradas.length === 0 ? (
+                                    <div className="text-center py-16 bg-slate-900/10 rounded-2xl border border-dashed border-slate-800"><span className="text-4xl">📭</span><h3 className="text-sm font-bold mt-2 text-slate-400">No hay minutas</h3></div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {minutasFiltradas.map((m, index) => (
+                                            <div key={m.id} className="card hover:border-slate-700 transition-all">
+                                                <div className="flex justify-between items-start gap-2 mb-3">
+                                                    <span className="badge badge-info">📅 {m.fecha?.split('-').reverse().join('/') || 'N/R'} {m.offline && <span className="text-amber-400 ml-1">💾</span>}</span>
+                                                    <span className={`badge ${m.estatus === 'Culminado' ? 'badge-success' : m.estatus === 'En Curso' ? 'badge-warning' : 'badge-danger'}`}>{m.estatus || 'Culminado'}</span>
+                                                </div>
+                                                <h3 className="text-sm font-black text-white">{m.servicioPersonalizado || m.servicioRealizado || 'Sin especificar'}</h3>
+                                                <div className="text-xs text-slate-400 mt-2 space-y-0.5">
+                                                    <p>📍 {m.ubicacion?.replace("PARROQUIA ", "") || 'N/R'}</p>
+                                                    <p className="italic text-slate-300">"{m.direccion}"</p>
+                                                    <p>👨‍🚒 {m.funcionario}</p>
+                                                    {m.parteDiario && <p className="text-blue-300">📝 Parte: {m.parteDiario}</p>}
+                                                    <p className="text-[8px] text-slate-500">Creado por: {m.creadoEmail ? obtenerNombreSeccion(m.creadoEmail) : 'Desconocido'}</p>
+                                                </div>
+                                                <div className="border-t border-slate-800/60 mt-4 pt-3 flex items-center justify-between">
+                                                    <span className="text-[9px] text-slate-500 font-bold uppercase">G.O. {m.turno}</span>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        <button onClick={() => setMinutaSeleccionada(m)} className="btn-accion btn-secondary text-[9px]">👁️ Ver</button>
+                                                        <button onClick={() => copiarAlPortapapeles(obtenerTextoFormateado(m))} className="btn-accion btn-secondary text-[9px]">📋 Copiar</button>
+                                                        <button onClick={() => descargarPDF(m)} className="btn-accion bg-red-900/30 hover:bg-red-900/50 text-red-400 border border-red-900/50 text-[9px]">📄 PDF</button>
+                                                        {usuarioEsAdmin && <>
+                                                            <button onClick={() => activarEdicion(m)} className="btn-accion bg-blue-900/30 hover:bg-blue-900/50 text-blue-400 border border-blue-900/50 text-[9px]">✏️</button>
+                                                            <button onClick={() => setMinutaEliminarConfirm(m.id)} className="btn-accion bg-slate-950 hover:bg-red-900 text-red-500 text-[9px]">🗑️</button>
+                                                        </>}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'estadisticas' && usuarioEsAdmin && <div className="card"><Dashboard minutas={minutas} /></div>}
+
+                        {minutaSeleccionada && (
+                            <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setMinutaSeleccionada(null)}>
+                                <div className="card max-w-2xl w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                                    <div className="flex justify-between items-start gap-3 border-b border-slate-800 pb-3">
+                                        <div>
+                                            <span className="badge badge-info">📅 {minutaSeleccionada.fecha?.split('-').reverse().join('/') || 'N/R'} - G.O. {minutaSeleccionada.turno}</span>
+                                            <h2 className="text-lg font-black text-white mt-1">{minutaSeleccionada.servicioPersonalizado || minutaSeleccionada.servicioRealizado || 'Sin especificar'}</h2>
+                                        </div>
+                                        <button onClick={() => setMinutaSeleccionada(null)} className="text-slate-400 hover:text-white bg-slate-950 px-3 py-1.5 rounded-xl text-xs font-bold">✕</button>
+                                    </div>
+                                    <div className="space-y-3 text-xs text-slate-300 mt-4">
+                                        <div className="grid grid-cols-2 gap-4 bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                                            <div><p className="text-[9px] uppercase text-slate-500 font-bold">Comandante</p><p className="font-bold text-white">{minutaSeleccionada.funcionario}</p></div>
+                                            <div><p className="text-[9px] uppercase text-slate-500 font-bold">Jurisdicción</p><p className="font-bold text-white">{minutaSeleccionada.ubicacion}</p></div>
+                                        </div>
+                                        {minutaSeleccionada.parteDiario && <div><p className="text-[9px] uppercase text-slate-500 font-bold">Parte Diario</p><p className="bg-slate-950 p-2.5 rounded-lg border border-slate-800/80 italic text-white">"{minutaSeleccionada.parteDiario}"</p></div>}
+                                        <div><p className="text-[9px] uppercase text-slate-500 font-bold">Dirección</p><p className="bg-slate-950 p-2.5 rounded-lg border border-slate-800/80 italic text-white">"{minutaSeleccionada.direccion}"</p></div>
+                                        <div className="grid grid-cols-3 gap-2 text-center bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                                            <div><span className="block text-[8px] uppercase text-slate-500 font-bold">Salida</span><span className="font-mono text-sm font-bold text-red-400">{minutaSeleccionada.horaSalida || 'N/R'}</span></div>
+                                            <div><span className="block text-[8px] uppercase text-slate-500 font-bold">Llegada</span><span className="font-mono text-sm font-bold text-red-400">{minutaSeleccionada.horaLlegada || 'N/R'}</span></div>
+                                            <div><span className="block text-[8px] uppercase text-slate-500 font-bold">Retorno</span><span className="font-mono text-sm font-bold text-red-400">{minutaSeleccionada.horaRegreso || 'N/R'}</span></div>
+                                        </div>
+                                        <div><p className="text-[9px] uppercase text-slate-500 font-bold">Observaciones</p><div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800/80 max-h-40 overflow-y-auto">{minutaSeleccionada.observaciones}</div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {minutaEliminarConfirm && (
+                            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                                <div className="card max-w-sm w-full text-center space-y-4">
+                                    <span className="text-3xl">⚠️</span>
+                                    <h3 className="text-sm font-black uppercase text-white">¿Eliminar?</h3>
+                                    <div className="flex gap-2 justify-center">
+                                        <button onClick={() => setMinutaEliminarConfirm(null)} className="btn-accion btn-secondary">Cancelar</button>
+                                        {usuarioEsAdmin ? <button onClick={() => eliminarMinuta(minutaEliminarConfirm)} className="btn-accion bg-red-600 hover:bg-red-700 text-white">Eliminar</button> : <button className="btn-accion bg-slate-700 text-slate-400" disabled>🔒 Sin permisos</button>}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <footer className="mt-16 border-t border-slate-900 pt-8 pb-12 flex flex-col items-center gap-3">
+                            <div className="inline-flex items-center gap-2.5 px-4 py-2 bg-slate-900/60 border border-slate-800 rounded-full">
+                                <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span>
+                                <span className="text-[10px] uppercase font-black tracking-widest text-slate-400">Bomberos Pedraza <span className="text-white">v3.1</span></span>
+                            </div>
+                            <p className="text-[8px] text-slate-600">Diseñada por <span className="text-red-400 font-bold">JHON LOPEZ</span></p>
+                        </footer>
+                    </div>
+                </ErrorBoundary>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
